@@ -95,6 +95,17 @@ const formatTimestamp = (isoString: string): string => {
   return date.toLocaleString();
 };
 
+const readSharedConfigurationFromUrl = (): Partial<Configuration> | null => {
+  const encoded = new URLSearchParams(window.location.search).get('config');
+  return encoded ? decodeConfigurationFromUrl(encoded) : null;
+};
+
+const createSnapshot = (
+  selections: Record<string, string | number | boolean>,
+  addOns: string[],
+  quantity: number,
+): string => JSON.stringify({ selections, addOns, quantity });
+
 const calculateColorColumns = (
   containerWidth: number,
   swatchSize: number = 36,
@@ -119,19 +130,28 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
   // State
   // -------------------------------------------------------------------------
 
+  const [sharedConfiguration] = useState(readSharedConfigurationFromUrl);
+
   const [selections, setSelections] = useState<Record<string, string | number | boolean>>(
-    () => initialConfiguration?.selections || getDefaultSelections(product),
+    () =>
+      sharedConfiguration?.selections ||
+      initialConfiguration?.selections ||
+      getDefaultSelections(product),
   );
 
   const [selectedAddOns, setSelectedAddOns] = useState<string[]>(
-    () => initialConfiguration?.addOns || [],
+    () => sharedConfiguration?.addOns || initialConfiguration?.addOns || [],
   );
 
-  const [quantity, setQuantity] = useState<number>(() => initialConfiguration?.quantity || 1);
+  const [quantity, setQuantity] = useState<number>(
+    () => sharedConfiguration?.quantity || initialConfiguration?.quantity || 1,
+  );
 
   const [configId] = useState<string>(() => initialConfiguration?.id || generateConfigId());
 
-  const [isDirty, setIsDirty] = useState(false);
+  const [savedSnapshot, setSavedSnapshot] = useState(() =>
+    createSnapshot(selections, selectedAddOns, quantity),
+  );
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [draftName, setDraftName] = useState('');
 
@@ -145,8 +165,6 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
   const [previewUrl, setPreviewUrl] = useState<string>(product.imageUrl);
 
   const [error, setError] = useState<string | null>(null);
-
-  const [shareUrl, setShareUrl] = useState<string>('');
 
   const containerRef = useRef<HTMLDivElement>(null);
   const colorPickerRef = useRef<HTMLDivElement>(null);
@@ -176,6 +194,14 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
     isLoading: isPriceLoading,
     error: priceError,
   } = usePriceCalculation(currentConfig, product);
+
+  const isDirty = createSnapshot(selections, selectedAddOns, quantity) !== savedSnapshot;
+
+  const shareUrl = useMemo(() => {
+    if (!showShareModal) return '';
+    const encoded = encodeConfigurationToUrl(currentConfig);
+    return `${window.location.origin}${window.location.pathname}?config=${encoded}`;
+  }, [showShareModal, currentConfig]);
 
   const appliedDiscount = getAppliedDiscountPercentage(quantity);
   const nextTier = getNextDiscountTier(quantity);
@@ -217,7 +243,9 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
           setValidation(result);
           setIsValid(true);
         }
-      } catch {}
+      } catch {
+        if (!cancelled) setValidation(null);
+      }
     };
 
     validate();
@@ -252,7 +280,6 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
     if (onConfigurationChange) {
       onConfigurationChange(currentConfig);
     }
-    setIsDirty(true);
   }, [selections, selectedAddOns, quantity]);
 
   useEffect(() => {
@@ -260,28 +287,6 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
       getAllDrafts().then(setDrafts);
     }
   }, [showDraftModal]);
-
-  useEffect(() => {
-    if (showShareModal) {
-      const encoded = encodeConfigurationToUrl(currentConfig);
-      const url = `${window.location.origin}${window.location.pathname}?config=${encoded}`;
-      setShareUrl(url);
-    }
-  }, [showShareModal, currentConfig]);
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const encodedConfig = params.get('config');
-
-    if (encodedConfig) {
-      const decoded = decodeConfigurationFromUrl(encodedConfig);
-      if (decoded) {
-        if (decoded.selections) setSelections(decoded.selections);
-        if (decoded.addOns) setSelectedAddOns(decoded.addOns);
-        if (decoded.quantity) setQuantity(decoded.quantity);
-      }
-    }
-  }, []);
 
   // -------------------------------------------------------------------------
   // Event Handlers
@@ -351,7 +356,9 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
     try {
       await saveDraft(currentConfig, draftName || 'Untitled Draft');
       setLastSaved(new Date());
-      setIsDirty(false);
+      setSavedSnapshot(
+        createSnapshot(currentConfig.selections, currentConfig.addOns, currentConfig.quantity),
+      );
       setDraftName('');
 
       setShowDraftModal(false);
@@ -368,7 +375,13 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
         setSelectedAddOns(draft.configuration.addOns);
         setQuantity(draft.configuration.quantity);
         setShowDraftModal(false);
-        setIsDirty(false);
+        setSavedSnapshot(
+          createSnapshot(
+            draft.configuration.selections,
+            draft.configuration.addOns,
+            draft.configuration.quantity,
+          ),
+        );
       }
     } catch {
       setError(ERROR_CODES.UNKNOWN);
@@ -432,10 +445,11 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
   );
 
   const handleDiscardChanges = useCallback(() => {
-    setSelections(getDefaultSelections(product));
+    const defaultSelections = getDefaultSelections(product);
+    setSelections(defaultSelections);
     setSelectedAddOns([]);
     setQuantity(1);
-    setIsDirty(false);
+    setSavedSnapshot(createSnapshot(defaultSelections, [], 1));
   }, [product]);
 
   // -------------------------------------------------------------------------
