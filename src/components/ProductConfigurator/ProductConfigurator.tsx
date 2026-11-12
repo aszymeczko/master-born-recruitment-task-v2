@@ -216,7 +216,7 @@ const ProductConfiguratorContent: React.FC<ProductConfiguratorProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const colorPickerRef = useRef<HTMLDivElement>(null);
   const lastFocusedElement = useRef<HTMLElement | null>(null);
-  const modalRef = useRef<HTMLDivElement>(null);
+  const modalRef = useRef<HTMLDialogElement>(null);
 
   // -------------------------------------------------------------------------
   // Derived State
@@ -332,8 +332,9 @@ const ProductConfiguratorContent: React.FC<ProductConfiguratorProps> = ({
   }, [showDraftModal]);
 
   useEffect(() => {
-    if (showDraftModal || showShareModal) {
-      modalRef.current?.focus();
+    const dialog = modalRef.current;
+    if ((showDraftModal || showShareModal) && dialog && !dialog.open) {
+      dialog.showModal();
     }
   }, [showDraftModal, showShareModal]);
 
@@ -470,15 +471,6 @@ const ProductConfiguratorContent: React.FC<ProductConfiguratorProps> = ({
       lastFocusedElement.current.focus();
     }
   }, []);
-
-  const handleModalKeyDown = useCallback(
-    (e: React.KeyboardEvent, modalType: 'draft' | 'share') => {
-      if (e.key === 'Escape') {
-        handleModalClose(modalType);
-      }
-    },
-    [handleModalClose],
-  );
 
   const handleDiscardChanges = useCallback(() => {
     const defaultSelections = getDefaultSelections(product);
@@ -757,20 +749,14 @@ const ProductConfiguratorContent: React.FC<ProductConfiguratorProps> = ({
     if (!showDraftModal) return null;
 
     return (
-      <div
-        className="modal-overlay"
-        onClick={() => handleModalClose('draft')}
-        onKeyDown={(e) => handleModalKeyDown(e, 'draft')}
+      <dialog
+        className="modal"
+        ref={modalRef}
+        aria-labelledby="draft-modal-title"
+        onClose={() => handleModalClose('draft')}
+        onClick={(e) => e.target === e.currentTarget && handleModalClose('draft')}
       >
-        <div
-          className="modal"
-          ref={modalRef}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="draft-modal-title"
-          tabIndex={-1}
-          onClick={(e) => e.stopPropagation()}
-        >
+        <div className="modal-content">
           <div className="modal-header">
             <h3 className="modal-title" id="draft-modal-title">
               Saved Drafts
@@ -841,7 +827,7 @@ const ProductConfiguratorContent: React.FC<ProductConfiguratorProps> = ({
             </div>
           </div>
         </div>
-      </div>
+      </dialog>
     );
   };
 
@@ -849,20 +835,14 @@ const ProductConfiguratorContent: React.FC<ProductConfiguratorProps> = ({
     if (!showShareModal) return null;
 
     return (
-      <div
-        className="modal-overlay"
-        onClick={() => handleModalClose('share')}
-        onKeyDown={(e) => handleModalKeyDown(e, 'share')}
+      <dialog
+        className="modal"
+        ref={modalRef}
+        aria-labelledby="share-modal-title"
+        onClose={() => handleModalClose('share')}
+        onClick={(e) => e.target === e.currentTarget && handleModalClose('share')}
       >
-        <div
-          className="modal"
-          ref={modalRef}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="share-modal-title"
-          tabIndex={-1}
-          onClick={(e) => e.stopPropagation()}
-        >
+        <div className="modal-content">
           <div className="modal-header">
             <h3 className="modal-title" id="share-modal-title">
               Share Configuration
@@ -899,7 +879,7 @@ const ProductConfiguratorContent: React.FC<ProductConfiguratorProps> = ({
             </button>
           </div>
         </div>
-      </div>
+      </dialog>
     );
   };
 
