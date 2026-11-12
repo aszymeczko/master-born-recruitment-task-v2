@@ -191,9 +191,8 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
       quantity,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      name: draftName || undefined,
     }),
-    [configId, product.id, selections, selectedAddOns, quantity, draftName],
+    [configId, product.id, selections, selectedAddOns, quantity],
   );
 
   const {
@@ -207,9 +206,9 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
 
   const shareUrl = useMemo(() => {
     if (!showShareModal) return '';
-    const encoded = encodeConfigurationToUrl(currentConfig);
+    const encoded = encodeConfigurationToUrl({ ...currentConfig, name: draftName || undefined });
     return `${window.location.origin}${window.location.pathname}?config=${encoded}`;
-  }, [showShareModal, currentConfig]);
+  }, [showShareModal, currentConfig, draftName]);
 
   const appliedDiscount = getAppliedDiscountPercentage(quantity);
   const nextTier = getNextDiscountTier(quantity);
@@ -280,7 +279,7 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
     if (onConfigurationChange) {
       onConfigurationChange(currentConfig);
     }
-  }, [selections, selectedAddOns, quantity]);
+  }, [currentConfig, onConfigurationChange]);
 
   useEffect(() => {
     if (showDraftModal) {
