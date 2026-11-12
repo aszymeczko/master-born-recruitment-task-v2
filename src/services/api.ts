@@ -209,6 +209,20 @@ function formatCurrency(amount: number, currency: string): string {
   }).format(amount);
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function pickSelectionValues(raw: Record<string, unknown>): Configuration['selections'] {
+  const selections: Configuration['selections'] = {};
+  for (const [key, value] of Object.entries(raw)) {
+    if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+      selections[key] = value;
+    }
+  }
+  return selections;
+}
+
 function toBase64Url(text: string): string {
   const bytes = new TextEncoder().encode(text);
   let binary = '';
@@ -245,12 +259,16 @@ export function encodeConfigurationToUrl(config: Configuration): string {
  */
 export function decodeConfigurationFromUrl(encoded: string): Partial<Configuration> | null {
   try {
-    const data = JSON.parse(fromBase64Url(encoded));
+    const data: unknown = JSON.parse(fromBase64Url(encoded));
+    if (!isRecord(data)) return null;
+
     return {
-      selections: data.s || {},
-      addOns: data.a || [],
-      quantity: data.q || 1,
-      name: data.n,
+      selections: isRecord(data.s) ? pickSelectionValues(data.s) : {},
+      addOns: Array.isArray(data.a)
+        ? data.a.filter((id): id is string => typeof id === 'string')
+        : [],
+      quantity: typeof data.q === 'number' && Number.isInteger(data.q) && data.q > 0 ? data.q : 1,
+      name: typeof data.n === 'string' ? data.n : undefined,
     };
   } catch (e) {
     console.error('Failed to decode configuration:', e);
