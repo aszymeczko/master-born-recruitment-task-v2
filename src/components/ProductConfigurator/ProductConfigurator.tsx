@@ -174,6 +174,7 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
 
   const [showDraftModal, setShowDraftModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'failed'>('idle');
   const [drafts, setDrafts] = useState<Draft[]>([]);
 
   const [validation, setValidation] = useState<ValidationResult | null>(null);
@@ -426,10 +427,8 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
   const handleCopyShareUrl = useCallback(() => {
     navigator.clipboard
       .writeText(shareUrl)
-      .then(() => {})
-      .catch(() => {
-        setError(ERROR_CODES.UNKNOWN);
-      });
+      .then(() => setCopyStatus('copied'))
+      .catch(() => setCopyStatus('failed'));
   }, [shareUrl]);
 
   const handleModalClose = useCallback((modalType: 'draft' | 'share') => {
@@ -857,6 +856,11 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
               readOnly
               onClick={(e) => (e.target as HTMLInputElement).select()}
             />
+            <p className="copy-status" role="status">
+              {copyStatus === 'copied' && 'Link copied to clipboard.'}
+              {copyStatus === 'failed' &&
+                "We couldn't copy the link automatically. Select the link above and copy it manually."}
+            </p>
           </div>
           <div className="modal-footer">
             <button className="btn btn-secondary" onClick={() => handleModalClose('share')}>
@@ -896,6 +900,7 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
             className="btn btn-secondary"
             onClick={(e) => {
               lastFocusedElement.current = e.currentTarget;
+              setCopyStatus('idle');
               setShowShareModal(true);
             }}
           >
