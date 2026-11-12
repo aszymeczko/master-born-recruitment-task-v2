@@ -524,7 +524,7 @@ const ProductConfiguratorContent: React.FC<ProductConfiguratorProps> = ({
           {choices.map((choice, index) => (
             <button
               type="button"
-              key={index}
+              key={choice.id}
               className={`color-swatch ${currentValue === choice.value ? 'selected' : ''}`}
               style={{ backgroundColor: choice.colorHex }}
               onClick={() => handleOptionChange(option.id, choice.value)}
@@ -644,7 +644,7 @@ const ProductConfiguratorContent: React.FC<ProductConfiguratorProps> = ({
 
     return (
       <label
-        key={addOn.name}
+        key={addOn.id}
         className={`addon-item ${isSelected ? 'selected' : ''} ${!isAvailable ? 'disabled' : ''}`}
       >
         <input
@@ -681,10 +681,10 @@ const ProductConfiguratorContent: React.FC<ProductConfiguratorProps> = ({
           <span>{formatPrice(price.basePrice, product.currency)}</span>
         </div>
 
-        {price.optionModifiers.map((mod, i) => {
+        {price.optionModifiers.map((mod) => {
           const option = product.options.find((o) => o.id === mod.optionId);
           return (
-            <div className="price-line" key={i}>
+            <div className="price-line" key={mod.optionId}>
               <span>{option?.name || mod.optionId}</span>
               <span>
                 {mod.amount >= 0 ? '+' : ''}
@@ -694,10 +694,10 @@ const ProductConfiguratorContent: React.FC<ProductConfiguratorProps> = ({
           );
         })}
 
-        {price.addOnCosts.map((cost, i) => {
+        {price.addOnCosts.map((cost) => {
           const addOn = product.addOns.find((a) => a.id === cost.addOnId);
           return (
-            <div className="price-line" key={i}>
+            <div className="price-line" key={cost.addOnId}>
               <span>{addOn?.name || cost.addOnId}</span>
               <span>+{formatPrice(cost.amount, product.currency)}</span>
             </div>
@@ -936,8 +936,8 @@ const ProductConfiguratorContent: React.FC<ProductConfiguratorProps> = ({
         </div>
       )}
 
-      {validation?.warnings.map((warning, i) => (
-        <div key={i} className="validation-warning">
+      {validation?.warnings.map((warning) => (
+        <div key={`${warning.code}-${warning.optionId ?? ''}`} className="validation-warning">
           {warning.message}
         </div>
       ))}
