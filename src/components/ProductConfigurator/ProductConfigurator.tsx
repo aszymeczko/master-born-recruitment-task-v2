@@ -106,6 +106,13 @@ const createSnapshot = (
   quantity: number,
 ): string => JSON.stringify({ selections, addOns, quantity });
 
+const SWATCH_KEY_STEPS: Record<string, number> = {
+  ArrowRight: 1,
+  ArrowDown: 1,
+  ArrowLeft: -1,
+  ArrowUp: -1,
+};
+
 const calculateColorColumns = (
   containerWidth: number,
   swatchSize: number = 36,
@@ -467,6 +474,19 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
 
   const renderColorOption = (option: ProductOption) => {
     const currentValue = selections[option.id] as string;
+    const choices = option.choices ?? [];
+    const selectedIndex = choices.findIndex((choice) => choice.value === currentValue);
+
+    const handleSwatchKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>, index: number) => {
+      const step = SWATCH_KEY_STEPS[e.key];
+      if (!step || readOnly) return;
+
+      e.preventDefault();
+      const nextIndex = (index + step + choices.length) % choices.length;
+      handleOptionChange(option.id, choices[nextIndex].value);
+      const swatches = e.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('button');
+      swatches?.[nextIndex]?.focus();
+    };
 
     return (
       <div className="option-group" key={option.id}>
@@ -480,15 +500,20 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
           role="radiogroup"
           aria-label={option.name}
         >
-          {option.choices?.map((choice, index) => (
-            <div
+          {choices.map((choice, index) => (
+            <button
+              type="button"
               key={index}
               className={`color-swatch ${currentValue === choice.value ? 'selected' : ''}`}
               style={{ backgroundColor: choice.colorHex }}
-              onClick={() => !readOnly && handleOptionChange(option.id, choice.value)}
+              onClick={() => handleOptionChange(option.id, choice.value)}
+              onKeyDown={(e) => handleSwatchKeyDown(e, index)}
+              disabled={readOnly}
               title={choice.label}
+              aria-label={choice.label}
               role="radio"
               aria-checked={currentValue === choice.value}
+              tabIndex={index === Math.max(selectedIndex, 0) ? 0 : -1}
             />
           ))}
         </div>
