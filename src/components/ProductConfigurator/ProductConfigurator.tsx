@@ -204,8 +204,10 @@ const ProductConfiguratorContent: React.FC<ProductConfiguratorProps> = ({
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'failed'>('idle');
   const [drafts, setDrafts] = useState<Draft[]>([]);
 
-  const [validation, setValidation] = useState<ValidationResult | null>(null);
-  const [isValid, setIsValid] = useState(false);
+  const [validationState, setValidationState] = useState<{
+    config: Configuration;
+    result: ValidationResult | null;
+  } | null>(null);
 
   const [previewUrl, setPreviewUrl] = useState<string>(product.imageUrl);
 
@@ -243,6 +245,10 @@ const ProductConfiguratorContent: React.FC<ProductConfiguratorProps> = ({
 
   const displayedError = error ?? priceError;
 
+  const validation = validationState?.result ?? null;
+  const isValidating = validationState?.config !== currentConfig;
+  const isConfigurationValid = !isValidating && validation?.valid === true;
+
   const isDirty = createSnapshot(selections, selectedAddOns, quantity) !== savedSnapshot;
 
   const shareUrl = useMemo(() => {
@@ -279,12 +285,9 @@ const ProductConfiguratorContent: React.FC<ProductConfiguratorProps> = ({
     const validate = async () => {
       try {
         const result = await validateConfiguration(currentConfig, product);
-        if (!cancelled) {
-          setValidation(result);
-          setIsValid(true);
-        }
+        if (!cancelled) setValidationState({ config: currentConfig, result });
       } catch {
-        if (!cancelled) setValidation(null);
+        if (!cancelled) setValidationState({ config: currentConfig, result: null });
       }
     };
 
@@ -433,7 +436,7 @@ const ProductConfiguratorContent: React.FC<ProductConfiguratorProps> = ({
   }, []);
 
   const handleAddToCart = useCallback(() => {
-    if (!validation?.valid) {
+    if (!isConfigurationValid) {
       setError(validation?.errors[0]?.code || ERROR_CODES.UNKNOWN);
       return;
     }
@@ -441,7 +444,7 @@ const ProductConfiguratorContent: React.FC<ProductConfiguratorProps> = ({
     if (price && onAddToCart) {
       onAddToCart(currentConfig, price);
     }
-  }, [validation, price, currentConfig, onAddToCart]);
+  }, [isConfigurationValid, validation, price, currentConfig, onAddToCart]);
 
   const handleQuickAdd = useCallback(() => {
     if (price && onAddToCart) {
@@ -992,14 +995,18 @@ const ProductConfiguratorContent: React.FC<ProductConfiguratorProps> = ({
             {renderPriceBreakdown()}
 
             <div className="validation-indicator">
-              {isValid ? '✓ Configuration validated' : '⏳ Validating…'}
+              {isValidating
+                ? '⏳ Validating…'
+                : isConfigurationValid
+                  ? '✓ Configuration validated'
+                  : `⚠ ${getErrorMessage(validation?.errors[0]?.code ?? ERROR_CODES.UNKNOWN).message}`}
             </div>
 
             <div className="quick-add-section">
               <button
                 className="quick-add-btn"
                 onClick={handleQuickAdd}
-                disabled={readOnly || !validation?.valid}
+                disabled={readOnly || !isConfigurationValid}
               >
                 ⚡ Quick Add to Cart
               </button>
@@ -1009,7 +1016,7 @@ const ProductConfiguratorContent: React.FC<ProductConfiguratorProps> = ({
           <button
             className="btn btn-success btn-block"
             onClick={handleAddToCart}
-            disabled={readOnly || !validation?.valid || isPriceLoading}
+            disabled={readOnly || !isConfigurationValid || isPriceLoading}
           >
             {isPriceLoading ? 'Calculating...' : 'Add to Cart'}
           </button>
