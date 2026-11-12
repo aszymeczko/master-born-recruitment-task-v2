@@ -30,6 +30,7 @@ import type {
   ValidationResult,
 } from './types';
 import { ERROR_CODES } from './types';
+import { getErrorMessage } from './errorMessages';
 import { usePriceCalculation } from '../../hooks/usePriceCalculation';
 import {
   validateConfiguration,
@@ -209,7 +210,10 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
     formattedTotal,
     isLoading: isPriceLoading,
     error: priceError,
+    refetch: refetchPrice,
   } = usePriceCalculation(currentConfig, product);
+
+  const displayedError = error ?? priceError;
 
   const isDirty = createSnapshot(selections, selectedAddOns, quantity) !== savedSnapshot;
 
@@ -905,10 +909,24 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
         </div>
       </div>
 
-      {(error || priceError) && (
-        <div className="error-message">
-          <div>Something went wrong. Please try again.</div>
-          <div className="error-code">Error: {error || priceError}</div>
+      {displayedError && (
+        <div className="error-message" role="alert">
+          <div>
+            <strong>{getErrorMessage(displayedError).message}</strong>{' '}
+            {getErrorMessage(displayedError).action}
+          </div>
+          <div className="error-code">Reference: {displayedError}</div>
+          <div className="error-actions">
+            {error ? (
+              <button type="button" className="btn btn-secondary" onClick={() => setError(null)}>
+                Dismiss
+              </button>
+            ) : (
+              <button type="button" className="btn btn-secondary" onClick={refetchPrice}>
+                Try again
+              </button>
+            )}
+          </div>
         </div>
       )}
 

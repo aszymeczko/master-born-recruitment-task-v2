@@ -565,6 +565,10 @@
   opacity: 0.7;
 }
 
+.error-actions {
+  margin-top: 8px;
+}
+
 /* Validation Warnings */
 .validation-warning {
   padding: 12px 16px;
