@@ -577,15 +577,19 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
             onClick={() => !readOnly && handleOptionChange(option.id, !currentValue)}
             role="switch"
             aria-checked={currentValue}
+            aria-labelledby={`option-${option.id}-label`}
+            aria-disabled={readOnly}
             tabIndex={0}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
+              if (!readOnly && (e.key === 'Enter' || e.key === ' ')) {
                 e.preventDefault();
                 handleOptionChange(option.id, !currentValue);
               }
             }}
           />
-          <span className="toggle-label">{option.name}</span>
+          <span className="toggle-label" id={`option-${option.id}-label`}>
+            {option.name}
+          </span>
         </div>
       </div>
     );
