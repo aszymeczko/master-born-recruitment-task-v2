@@ -31,6 +31,7 @@ import type {
 } from './types';
 import { ERROR_CODES } from './types';
 import { getErrorMessage } from './errorMessages';
+import { ConfiguratorErrorBoundary } from './ConfiguratorErrorBoundary';
 import { usePriceCalculation } from '../../hooks/usePriceCalculation';
 import {
   validateConfiguration,
@@ -136,7 +137,7 @@ const calculateColorColumns = (
 // Main Component
 // ============================================================================
 
-export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
+const ProductConfiguratorContent: React.FC<ProductConfiguratorProps> = ({
   product,
   initialConfiguration,
   onConfigurationChange,
@@ -1042,5 +1043,11 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
     </div>
   );
 };
+
+export const ProductConfigurator: React.FC<ProductConfiguratorProps> = (props) => (
+  <ConfiguratorErrorBoundary>
+    <ProductConfiguratorContent {...props} />
+  </ConfiguratorErrorBoundary>
+);
 
 export default ProductConfigurator;
