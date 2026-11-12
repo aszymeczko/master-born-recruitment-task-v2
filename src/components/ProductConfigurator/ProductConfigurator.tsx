@@ -206,16 +206,6 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
   const appliedDiscount = getAppliedDiscountPercentage(quantity);
   const nextTier = getNextDiscountTier(quantity);
 
-  const availableAddOns = useMemo(() => {
-    const map = new Map<string, AddOn>();
-    for (const addOn of product.addOns) {
-      if (isAddOnAvailable(addOn, selections)) {
-        map.set(addOn.id, addOn);
-      }
-    }
-    return map;
-  }, [product.addOns, selections]);
-
   // -------------------------------------------------------------------------
   // Effects
   // -------------------------------------------------------------------------
@@ -299,24 +289,15 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
         [optionId]: value,
       }));
 
-      const option = product.options.find((o) => o.id === optionId);
-      // Clean up any dependent add-ons whose requirement is no longer met.
-      // Toggles are handled in handleAddOnToggle, so we only need to do this for select options.
-      if (option && option.type === 'select') {
-        const dependentAddOns = product.addOns.filter((a) => a.dependsOn?.optionId === optionId);
+      const unmetAddOnIds = product.addOns
+        .filter((a) => a.dependsOn?.optionId === optionId && a.dependsOn.requiredValue !== value)
+        .map((a) => a.id);
 
-        for (const addOn of dependentAddOns) {
-          if (addOn.dependsOn && value !== addOn.dependsOn.requiredValue) {
-            const index = selectedAddOns.indexOf(addOn.id);
-            if (index > -1) {
-              selectedAddOns.splice(index, 1);
-              setSelectedAddOns(selectedAddOns);
-            }
-          }
-        }
+      if (unmetAddOnIds.length > 0) {
+        setSelectedAddOns((prev) => prev.filter((id) => !unmetAddOnIds.includes(id)));
       }
     },
-    [product.options, product.addOns, selectedAddOns],
+    [product.addOns],
   );
 
   const handleAddOnToggle = useCallback(
@@ -945,11 +926,9 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
               <div className="config-summary-item">
                 <span>Add-ons ({selectedAddOns.length}):</span>
                 <span>
-                  {selectedAddOns
-                    .map((id) => {
-                      const addOn = availableAddOns.get(id)!;
-                      return formatPrice(addOn.price, product.currency);
-                    })
+                  {product.addOns
+                    .filter((addOn) => selectedAddOns.includes(addOn.id))
+                    .map((addOn) => formatPrice(addOn.price, product.currency))
                     .join(' + ')}
                 </span>
               </div>
