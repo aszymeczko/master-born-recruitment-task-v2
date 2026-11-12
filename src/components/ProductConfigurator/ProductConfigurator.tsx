@@ -618,16 +618,15 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
     const isAvailable = isAddOnAvailable(addOn, selections);
 
     return (
-      <div
+      <label
         key={addOn.name}
         className={`addon-item ${isSelected ? 'selected' : ''} ${!isAvailable ? 'disabled' : ''}`}
-        onClick={() => !readOnly && isAvailable && handleAddOnToggle(addOn.id)}
       >
         <input
           type="checkbox"
           className="addon-checkbox"
           checked={isSelected}
-          onChange={() => {}}
+          onChange={() => handleAddOnToggle(addOn.id)}
           disabled={readOnly || !isAvailable}
         />
         <div className="addon-info">
@@ -640,7 +639,7 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
           </div>
         </div>
         <div className="addon-price">+{formatPrice(addOn.price, product.currency)}</div>
-      </div>
+      </label>
     );
   };
 
