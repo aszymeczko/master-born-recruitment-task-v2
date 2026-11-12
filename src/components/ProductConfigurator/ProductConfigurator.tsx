@@ -93,6 +93,39 @@ const isAddOnAvailable = (
   return dependencyValue === addOn.dependsOn.requiredValue;
 };
 
+const sanitizeConfiguration = (
+  product: Product,
+  source?: Partial<Configuration> | null,
+): Pick<Configuration, 'selections' | 'addOns' | 'quantity'> => {
+  const selections = getDefaultSelections(product);
+  for (const option of product.options) {
+    const value = source?.selections?.[option.id];
+    if (value === undefined) continue;
+
+    const isAllowed = option.choices
+      ? option.choices.some((choice) => choice.value === value && choice.available)
+      : option.type !== 'toggle' || typeof value === 'boolean';
+    if (isAllowed) selections[option.id] = value;
+  }
+
+  const requestedAddOns = Array.isArray(source?.addOns) ? source.addOns : [];
+  const addOns = [...new Set(requestedAddOns)].filter((id) => {
+    const addOn = product.addOns.find((a) => a.id === id);
+    return addOn !== undefined && isAddOnAvailable(addOn, selections);
+  });
+
+  const quantityOption = product.options.find((o) => o.type === 'quantity');
+  const min = quantityOption?.min ?? 1;
+  const max = quantityOption?.max ?? 999;
+  const requestedQuantity =
+    typeof source?.quantity === 'number' && Number.isFinite(source.quantity)
+      ? Math.floor(source.quantity)
+      : min;
+  const quantity = Math.min(max, Math.max(min, requestedQuantity));
+
+  return { selections, addOns, quantity };
+};
+
 const describeRequirement = (dependency: OptionDependency, product: Product): string => {
   const option = product.options.find((o) => o.id === dependency.optionId);
   if (!option) return dependency.optionId;
@@ -150,20 +183,13 @@ const ProductConfiguratorContent: React.FC<ProductConfiguratorProps> = ({
 
   const [sharedConfiguration] = useState(readSharedConfigurationFromUrl);
 
-  const [selections, setSelections] = useState<Record<string, string | number | boolean>>(
-    () =>
-      sharedConfiguration?.selections ||
-      initialConfiguration?.selections ||
-      getDefaultSelections(product),
+  const [initialState] = useState(() =>
+    sanitizeConfiguration(product, sharedConfiguration ?? initialConfiguration),
   );
 
-  const [selectedAddOns, setSelectedAddOns] = useState<string[]>(
-    () => sharedConfiguration?.addOns || initialConfiguration?.addOns || [],
-  );
-
-  const [quantity, setQuantity] = useState<number>(
-    () => sharedConfiguration?.quantity || initialConfiguration?.quantity || 1,
-  );
+  const [selections, setSelections] = useState(initialState.selections);
+  const [selectedAddOns, setSelectedAddOns] = useState(initialState.addOns);
+  const [quantity, setQuantity] = useState(initialState.quantity);
 
   const [configId] = useState<string>(() => initialConfiguration?.id || generateConfigId());
 
@@ -378,26 +404,24 @@ const ProductConfiguratorContent: React.FC<ProductConfiguratorProps> = ({
     }
   }, [currentConfig, draftName]);
 
-  const handleLoadDraft = useCallback(async (draftId: string) => {
-    try {
-      const draft = await loadDraft(draftId);
-      if (draft) {
-        setSelections(draft.configuration.selections);
-        setSelectedAddOns(draft.configuration.addOns);
-        setQuantity(draft.configuration.quantity);
-        setShowDraftModal(false);
-        setSavedSnapshot(
-          createSnapshot(
-            draft.configuration.selections,
-            draft.configuration.addOns,
-            draft.configuration.quantity,
-          ),
-        );
+  const handleLoadDraft = useCallback(
+    async (draftId: string) => {
+      try {
+        const draft = await loadDraft(draftId);
+        if (draft) {
+          const loaded = sanitizeConfiguration(product, draft.configuration);
+          setSelections(loaded.selections);
+          setSelectedAddOns(loaded.addOns);
+          setQuantity(loaded.quantity);
+          setShowDraftModal(false);
+          setSavedSnapshot(createSnapshot(loaded.selections, loaded.addOns, loaded.quantity));
+        }
+      } catch {
+        setError(ERROR_CODES.UNKNOWN);
       }
-    } catch {
-      setError(ERROR_CODES.UNKNOWN);
-    }
-  }, []);
+    },
+    [product],
+  );
 
   const handleDeleteDraft = useCallback(async (draftId: string) => {
     try {
