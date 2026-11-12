@@ -153,7 +153,7 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
     createSnapshot(selections, selectedAddOns, quantity),
   );
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
-  const [draftName, setDraftName] = useState('');
+  const [draftName, setDraftName] = useState(() => sharedConfiguration?.name || '');
 
   const [showDraftModal, setShowDraftModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
